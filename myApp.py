@@ -1,0 +1,734 @@
+
+import requests
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
+from matplotlib.colors import Normalize
+from matplotlib.cm import ScalarMappable
+from streamlit_lottie import st_lottie
+
+# Set page configuration
+st.set_page_config(page_title='dataViz', layout='wide')
+
+# [theme]
+# base="light"
+
+# Load Animation
+with st.container():
+    def load_lottieurl(url: str):
+        r = requests.get(url)
+        if r.status_code != 200:
+            return none
+        return r.json()
+
+    # JSON url
+    lottie_hello = load_lottieurl("https://lottie.host/6b1719b1-dc87-4046-8b44-8f963a8bb4f1/I2C98A12u0.json")
+
+    st_lottie(lottie_hello, key='hello', speed=1, width=450, height=450)
+
+st.title('BlackFriday Dataset Analysis')
+
+st.markdown('---')
+
+# Load Data
+with st.container():
+
+    # Load data
+    @st.cache_data
+    def carregar_dados():
+        df = pd.read_csv('BlackFriday.csv', sep=',')
+        return df
+
+
+    df = carregar_dados()
+
+
+    # Group data for analysis
+    f1_df = df.groupby('Gender')['Purchase'].sum().reset_index()
+    f2_df = df.groupby('Age')['Purchase'].sum().reset_index()
+    f3_df = df.groupby('Marital_Status')['Purchase'].sum().reset_index()
+    f4_df = df.groupby(['Age', 'Gender'])['Purchase'].sum().unstack().reset_index()
+    f5_df = df.groupby(['Occupation', 'Gender'])['Purchase'].sum().unstack().reset_index()
+    f6_df = df['Product_Category_1'].value_counts().head(10).reset_index()
+    f6_df['Product_Category_1'] = f6_df['Product_Category_1'].astype(str)
+
+    f10_df = df['Product_Category_1'].value_counts()
+    f11_df = df.groupby('Product_Category_1')['Purchase'].mean()
+    f12_df = df.groupby('Product_Category_1')['Purchase'].sum()
+
+    # Merge the counts and averages into a single DataFrame
+    f13_df = pd.DataFrame({'Count': f10_df, 'Average_Purchase': f11_df, 'Total_Purchase': f12_df})
+
+    # Reset the index to have 'Product_ID' as a column
+    f13_df.reset_index(inplace=True)
+
+    f14_df = df.groupby('City_Category')['Purchase'].sum().reset_index()
+
+    output = []
+
+    for column in df.columns:
+        unique_values = df[column].unique()
+        if len(unique_values) < 30:
+            sorted_unique_values = sorted(unique_values)
+            output.append(f"'{column}': {sorted_unique_values}")
+
+    # Join the output list into a single string
+    output_text = '\n'.join(output)
+
+    f14_df = df.groupby('City_Category')['Purchase'].sum().reset_index()
+    f15_df = df.groupby('City_Category')['Purchase'].mean().reset_index()
+    f16_df = df.groupby('City_Category')['Purchase'].count().reset_index()
+
+    f17_df = df.groupby('Stay_In_Current_City_Years')['Purchase'].sum().reset_index()
+    f18_df = df.groupby('Stay_In_Current_City_Years')['Purchase'].mean().reset_index()
+    f19_df = df.groupby('Stay_In_Current_City_Years')['Purchase'].count().reset_index()
+
+    f20_df = df.groupby('Product_Category_1')['Purchase'].sum().reset_index()
+    f20_df['Product_Category_1'] = f20_df['Product_Category_1'].astype(str)
+
+# Load Dataframe on the app
+with st.container():
+    st.subheader('Dataframe Sample')
+    st.write(df.head(10), format={"Purchase": "R${:.2f}"})
+    st.markdown("")
+    st.subheader('Dataframe Unique Values by Column')
+    st.write(df.nunique())
+    st.markdown("")
+    st.subheader('Dataframe Unique Values by Column')
+    st.text(output_text)
+    st.markdown("")
+
+st.markdown(' ')
+st.title('BlackFriday Dataset Visualization')
+
+st.markdown('---')
+
+col1, col2, col3 = st.columns([1,1,1])
+
+# Histogram
+with col1:
+    st.subheader('Histogram of Purchases')
+
+    # Create a bar chart
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.hist(df['Purchase'], bins=20, color='blue')
+    ax.set_xlabel('Purchase')
+    ax.set_ylabel('Frequency')
+
+    def custom_xticklabels(value, pos):
+        # Center-align the text within the label by using '\n'
+        return f'\n${int(value / 1000)}k'  # Example: Format as dollars in millions
+
+    # Apply the custom formatting function to y-axis tick labels
+    x_formatter = FuncFormatter(custom_xticklabels)
+    ax.xaxis.set_major_formatter(x_formatter)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    # Display the chart in the Streamlit app
+    st.pyplot(fig)
+
+# Boxplot
+with col2:
+    # Create a Streamlit app
+    st.subheader("Boxplot Purchase")
+
+    # Create a boxplot using Matplotlib
+    fig, ax = plt.subplots(figsize=(6, 6))
+    box = ax.boxplot(df['Purchase'], patch_artist=True)
+
+    # Set the fill color to blue for the boxes
+    for box_element in box['boxes']:
+        box_element.set(facecolor='blue')
+
+    # Set color for the median line
+    for mean_element in box['medians']:
+        mean_element.set(color='red', linewidth=2.0)
+
+    # Calculate the median value
+    median_value = np.median(df['Purchase'])
+
+    # Annotate the median value on the plot (move to the left)
+    annotation_x = 0.8  # Adjust this value to move the annotation left or right
+    ax.annotate(f'Median: {median_value:.0f}', xy=(annotation_x, median_value),
+                xytext=(annotation_x - 0.2, median_value + 1000),
+                fontsize=12, color='red', fontweight='bold')
+
+    # Set labels for the plot
+    ax.set_ylabel('Purchase')
+    ax.set_xticklabels([])
+
+    def custom_yticklabels(value, pos):
+        # Center-align the text within the label by using '\n'
+        return f'\n${int(value / 1000)}k'  # Example: Format as dollars in millions
+
+    # Apply the custom formatting function to y-axis tick labels
+    y_formatter = FuncFormatter(custom_yticklabels)
+    ax.yaxis.set_major_formatter(y_formatter)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    # Display the plot in Streamlit
+    st.pyplot(fig)
+
+st.markdown(" ")
+col4, col5, col6 = st.columns([1,1,1])
+
+# Marital Pie
+with col4:
+    st.subheader('Marital Status Distribution')
+    # Plot a pie chart
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.pie(f3_df['Purchase'],
+           labels=['Single', 'Marrried'],
+           autopct='%1.1f%%',
+           startangle=30,
+           colors=['lightblue', 'blue'],
+           textprops={'fontsize': 11})
+    # Display the chart in the Streamlit app
+    st.pyplot(fig)
+
+# Gender Pie
+with col5:
+    st.subheader('Gender Distribution')
+    # Plot a pie chart
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.pie(f1_df['Purchase'],
+           labels=['Female','Male'],
+           autopct='%1.1f%%',
+           startangle=90,
+           colors=['lightpink', 'blue'],
+           textprops={'fontsize': 8})
+
+    # Display the chart in the Streamlit app
+    st.pyplot(fig)
+
+# City Pie
+with col6:
+    st.subheader('City Category Distribution')
+    # Plot a pie chart
+    fig, ax = plt.subplots(figsize=(4, 4))
+    ax.pie(f14_df['Purchase'],
+           labels=['A', 'B', 'C'],
+           autopct='%1.1f%%',
+           startangle=30,
+           colors=['lightblue', 'lightgreen', 'blue'],
+           textprops={'fontsize': 10})
+    # Display the chart in the Streamlit app
+    st.pyplot(fig)
+
+st.markdown(" ")
+col7, col8, col9 = st.columns([1,1,1])
+
+# Bar Total City
+with col7:
+    # Create a Streamlit app
+    st.subheader("Bar Chart of Total Income")
+
+    # Create the bar chart using Matplotlib
+    fig, ax = plt.subplots(figsize=(6, 6))
+
+    # Define a threshold value to highlight bars above it
+    highlight_threshold = 2000000000
+
+    # Create a list to store bar colors
+    bar_colors = ['gray' if purchase <= highlight_threshold else 'olive' for purchase in f14_df['Purchase']]
+
+    # Create the bar chart with highlighted bars
+    ax.bar(f14_df['City_Category'], f14_df['Purchase'], width=0.4, color=bar_colors)
+
+    # Set chart properties and title
+    ax.set_xlabel('City_Category')
+    ax.set_ylabel("Total Purchase")
+
+    def custom_yticklabels(value, pos):
+        # Center-align the text within the label by using '\n'
+        return f'\n${int(value / 1000000)}M'  # Example: Format as dollars in millions
+
+    # Apply the custom formatting function to y-axis tick labels
+    y_formatter = FuncFormatter(custom_yticklabels)
+    ax.yaxis.set_major_formatter(y_formatter)
+
+
+    # Set y-axis limit
+    ax.set_ylim(0, 2500000000)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    # Display the chart in Streamlit
+    st.pyplot(fig)
+
+# Bar Mean City
+with col8:
+    # Create a Streamlit app
+    st.subheader("Bar Chart of Mean Purchase")
+
+    # Create the bar chart using Matplotlib
+    fig, ax = plt.subplots(figsize=(6, 5.6))
+    ax.bar(f15_df['City_Category'], f15_df['Purchase'], width=0.4, color='gray')
+
+    # Set chart properties and title
+    ax.set_xlabel('City_Category')
+    ax.set_ylabel("Total Purchase")
+
+    def custom_yticklabels(value, pos):
+        # Center-align the text within the label by using '\n'
+        return f'\n${int(value / 1000)}k'  # Example: Format as dollars in millions
+
+    # Apply the custom formatting function to y-axis tick labels
+    y_formatter = FuncFormatter(custom_yticklabels)
+    ax.yaxis.set_major_formatter(y_formatter)
+
+    # Set y-axis limit
+    ax.set_ylim(0, 12000)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    # Display the chart in Streamlit
+    st.pyplot(fig)
+
+# Bar Count City
+with col9:
+    # Create a Streamlit app
+    st.subheader("Bar Chart of Count Purchase")
+
+    # Create the bar chart using Matplotlib
+    fig, ax = plt.subplots(figsize=(6, 6))
+
+    # Define a threshold value to highlight bars above it
+    highlight_threshold = 200000
+
+    # Create a list to store bar colors
+    bar_colors = ['gray' if purchase <= highlight_threshold else 'olive' for purchase in f16_df['Purchase']]
+
+    # Create the bar chart with highlighted bars
+    ax.bar(f16_df['City_Category'], f16_df['Purchase'], width=0.4, color=bar_colors)
+
+    # Set chart properties and title
+    ax.set_xlabel('City_Category')
+    ax.set_ylabel("Total Purchase")
+
+    # Set y-axis limit
+    ax.set_ylim(0, 250000)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    # Display the chart in Streamlit
+    st.pyplot(fig)
+
+st.markdown(" ")
+col10, col11, col12 = st.columns([1,1,1])
+
+# Bar Total Stay
+with col10:
+    # Create a Streamlit app
+    st.subheader("Bar Chart of Total Income")
+
+    # Create the bar chart using Matplotlib
+    fig, ax = plt.subplots(figsize=(6, 6))
+
+    # Define a threshold value to highlight bars above it
+    highlight_threshold = 1000000000
+
+    # Create a list to store bar colors
+    bar_colors = ['gray' if purchase <= highlight_threshold else 'seagreen' for purchase in f17_df['Purchase']]
+
+    # Create the bar chart with highlighted bars
+    ax.bar(f17_df['Stay_In_Current_City_Years'], f17_df['Purchase'], width=0.4, color=bar_colors)
+
+    # Set chart properties and title
+    ax.set_xlabel("Stay in Current City Years")
+    ax.set_ylabel("Total Purchase")
+
+    def custom_yticklabels(value, pos):
+        # Center-align the text within the label by using '\n'
+        return f'\n${int(value / 1000000)}M'  # Example: Format as dollars in millions
+
+    # Apply the custom formatting function to y-axis tick labels
+    y_formatter = FuncFormatter(custom_yticklabels)
+    ax.yaxis.set_major_formatter(y_formatter)
+
+    # Set y-axis limit
+    ax.set_ylim(0, 2500000000)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    # Display the chart in Streamlit
+    st.pyplot(fig)
+
+# Bar Mean Stay
+with col11:
+    # Create a Streamlit app
+    st.subheader("Bar Chart of Mean Purchase")
+
+    # Create the bar chart using Matplotlib
+    fig, ax = plt.subplots(figsize=(6, 5.6))
+    ax.bar(f18_df['Stay_In_Current_City_Years'], f18_df['Purchase'], width=0.7, color='grey')
+
+    # Set chart properties and title
+    ax.set_xlabel("Stay in Current City Years")
+    ax.set_ylabel("Total Purchase")
+
+    def custom_yticklabels(value, pos):
+        # Center-align the text within the label by using '\n'
+        return f'\n${int(value / 1000)}k'  # Example: Format as dollars in millions
+
+    # Apply the custom formatting function to y-axis tick labels
+    y_formatter = FuncFormatter(custom_yticklabels)
+    ax.yaxis.set_major_formatter(y_formatter)
+
+    # Set y-axis limit
+    ax.set_ylim(0, 12000)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    # Display the chart in Streamlit
+    st.pyplot(fig)
+
+# Bar Count Stay
+with col12:
+    # Create a Streamlit app
+    st.subheader("Bar Chart of Count Purchase")
+
+    # Create the bar chart using Matplotlib
+    fig, ax = plt.subplots(figsize=(6, 6))
+
+    # Define a threshold value to highlight bars above it
+    highlight_threshold = 150000
+
+    # Create a list to store bar colors
+    bar_colors = ['gray' if purchase <= highlight_threshold else 'seagreen' for purchase in f19_df['Purchase']]
+
+    # Create the bar chart with highlighted bars
+    ax.bar(f19_df['Stay_In_Current_City_Years'], f19_df['Purchase'], width=0.4, color=bar_colors)
+
+    # Set chart properties and title
+    ax.set_xlabel("Stay in Current City Years")
+    ax.set_ylabel("Total Purchase")
+
+    # Set y-axis limit
+    ax.set_ylim(0, 250000)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    # Display the chart in Streamlit
+    st.pyplot(fig)
+
+st.markdown(" ")
+col13, col14 = st.columns([1,1])
+
+# Pyramid Age
+with col13:
+    st.subheader('Piramid Distribution by Age and Gender')
+    # Create a single plot with two subplots (one for each gender)
+    fig, axes = plt.subplots(1, 2, figsize=(10, 7))
+
+    # Plot "Male Purchase by Age" with reversed x-axis on the left
+    f4_df.set_index('Age')['M'].plot(kind='barh', ax=axes[0], color='blue')
+    axes[0].set_title('Male Total Purchase by Age')
+    axes[0].set_xlabel('')
+    axes[0].set_ylabel('')
+    axes[0].set_xlim(reversed(axes[0].get_xlim()))
+    axes[0].set_yticklabels([])
+
+    # Set custom x-axis interval ticks for the left plot
+    custom_ticks = [0, 500000000, 1000000000, 1500000000, 2000000000]
+    axes[0].set_xticks(custom_ticks)
+
+    axes[0].set_xlim(2000000000, 0)
+
+    # Plot "Female Purchase by Age" on the right
+    f4_df.set_index('Age')['F'].plot(kind='barh', ax=axes[1], color='lightpink')
+    axes[1].set_title('Female Total Purchase by Age')
+    axes[1].set_xlabel('')
+    axes[1].set_ylabel('')
+    axes[1].set_xlim(0, 2000000000)
+    axes[1].set_yticklabels([age + '   ' for age in f4_df['Age']])
+    axes[1].set_xticks(custom_ticks)
+
+    # Create a custom formatting function for y-axis tick labels
+    def custom_xticklabels(value, pos):
+        # Center-align the text within the label by using '\n'
+        return f'\n${int(value / 1000000)}M'  # Example: Format as dollars in millions
+
+
+    # Apply the custom formatting function to y-axis tick labels
+    x_formatter = FuncFormatter(custom_xticklabels)
+    axes[0].xaxis.set_major_formatter(x_formatter)
+    axes[1].xaxis.set_major_formatter(x_formatter)
+
+    # Hide gridlines on both subplots
+    axes[0].grid(False)
+    axes[1].grid(False)
+
+    # Hide borderlines around each subplot
+    for ax in axes:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+
+    # Hide y ticks
+    axes[0].set_yticks([])
+
+    # Adjust spacing between subplots
+    plt.tight_layout()
+
+    # Show the plot
+    st.pyplot(fig)
+
+# Pyramid Occupation
+with col14:
+    st.subheader('Piramid Distribution by Occupation and Gender')
+    # Create a single plot with two subplots (one for each gender)
+    fig, axes = plt.subplots(1, 2, figsize=(10, 7))
+
+    # Plot "Male Purchase by Age" with reversed x-axis on the left
+    f5_df.set_index('Occupation')['M'].plot(kind='barh', ax=axes[0], color='blue')
+    axes[0].set_title('Male Total Purchase by Occupation')
+    axes[0].set_xlabel('')
+    axes[0].set_ylabel('')
+    axes[0].set_xlim(reversed(axes[0].get_xlim()))
+    axes[0].set_yticklabels([])
+
+    axes[0].set_xlim(1000000000, 0)
+
+    # Plot "Female Purchase by Age" on the right
+    f5_df.set_index('Occupation')['F'].plot(kind='barh', ax=axes[1], color='lightpink')
+    axes[1].set_title('Female Total Purchase by Occupation')
+    axes[1].set_xlabel('')
+    axes[1].set_ylabel('')
+    axes[1].set_xlim(0, 1000000000)
+    axes[1].set_yticklabels([str(Occupation) + '   ' for Occupation in f5_df['Occupation']])
+
+    # Create a custom formatting function for y-axis tick labels
+    def custom_xticklabels(value, pos):
+        # Center-align the text within the label by using '\n'
+        return f'\n${int(value / 1000000)}M'  # Example: Format as dollars in millions
+
+    # Apply the custom formatting function to y-axis tick labels
+    x_formatter = FuncFormatter(custom_xticklabels)
+    axes[0].xaxis.set_major_formatter(x_formatter)
+    axes[1].xaxis.set_major_formatter(x_formatter)
+
+    # Hide gridlines on both subplots
+    axes[0].grid(False)
+    axes[1].grid(False)
+
+    # Hide borderlines around each subplot
+    for ax in axes:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+
+    # Hide y ticks
+    axes[0].set_yticks([])
+
+    # Adjust spacing between subplots
+    plt.tight_layout()
+
+    # Show the plot
+    st.pyplot(fig)
+
+st.markdown(" ")
+col15, col16 = st.columns([2,1])
+
+# Scatter Category 1
+with col15:
+    st.subheader('Scatter Plot by Product Category 1')
+    st.write('Circle Size by Total Income by Category 1')
+    # Normalize the 'Total_Purchase' values to be in the range [0, 1]
+    total_purchase2 = f13_df['Total_Purchase']
+    normalized_total_purchase2 = ((total_purchase2 - total_purchase2.min()) / (
+                total_purchase2.max() - total_purchase2.min())) * 1000
+
+    # Define a colormap
+    colormap = plt.get_cmap('Blues')
+
+    # Create a ScalarMappable to map normalized 'Total_Purchase' values to colors
+    sm2 = ScalarMappable(cmap=colormap, norm=Normalize(vmin=0, vmax=1000))
+
+    # Crie uma figura
+    fig, ax = plt.subplots(figsize=(9, 4))
+
+    # Plote os dados de dispersão com um fundo branco
+    scatter = ax.scatter(f13_df['Count'], f13_df['Average_Purchase'],
+                         s=normalized_total_purchase2,
+                         c=sm2.to_rgba(normalized_total_purchase2),
+                         edgecolors='black',
+                         alpha=0.5)
+
+    # Adicione rótulos aos eixos x e y
+    ax.set_xlabel('Count Purchases')
+    ax.set_ylabel('Mean Price')
+
+
+    # Create a custom formatting function for y-axis tick labels
+    def custom_yticklabels(value, pos):
+        # Center-align the text within the label by using '\n'
+        return f'\n${int(value / 1000)}k'  # Example: Format as dollars in millions
+
+
+    # Apply the custom formatting function to y-axis tick labels
+    y_formatter = FuncFormatter(custom_yticklabels)
+    ax.yaxis.set_major_formatter(y_formatter)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    # Adicione rótulos aos círculos com base na coluna 'Product_Category_1'
+    for i, row in f13_df.iterrows():
+        product_category = str(row['Product_Category_1']).replace(".0", "")  # Remove decimal points
+        ax.annotate(product_category,
+                    (row['Count'], row['Average_Purchase']),
+                    fontsize=8,
+                    fontweight='bold',
+                    ha='left',
+                    va='bottom')
+
+    # Mostre o gráfico
+    st.pyplot(fig)
+
+# Horizontal Bar Category 1
+with col16:
+    # Create a Streamlit app
+    st.subheader("Bar Chart of Total Purchase Product Category 1")
+
+    # Create the bar chart using Matplotlib
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.barh(f20_df['Product_Category_1'], f20_df['Purchase'], height=0.7, color='gray')
+
+    # # Set chart properties and title
+    # ax.set_xlabel("Purchase Count")
+    # ax.set_ylabel("Product_Category_1")
+
+    # # Set y-axis limit
+    # ax.set_ylim(0, 10)
+
+    # Reverse the y-axis
+    ax.invert_yaxis()
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    # Customize the y-axis tick skip (interval)
+    tick_interval = 1  # Change this value to the desired interval
+    ax.set_yticks(ax.get_yticks()[::tick_interval])
+
+    # Create a custom formatting function for y-axis tick labels
+    def custom_xticklabels(value, pos):
+        # Center-align the text within the label by using '\n'
+        return f'\n${int(value / 1000000)}M'  # Example: Format as dollars in millions
+
+
+    # Apply the custom formatting function to y-axis tick labels
+    x_formatter = FuncFormatter(custom_xticklabels)
+    ax.xaxis.set_major_formatter(x_formatter)
+
+    ax.set_xlim(0, 2000000000)
+
+    # Display the chart in Streamlit
+    st.pyplot(fig)
+
+st.markdown(' ')
+st.title('BlackFriday Dataset Target Recommendation')
+st.markdown('---')
+
+col17, col18 = st.columns([1,2])
+
+# Recommendations
+with col17:
+    st.subheader('Targeted Marketing Efforts')
+    st.markdown('''
+    - **Gender:** Male
+    - **Age:** 26 - 35
+    - **Occupations:** 0, 4, 7
+    - **City Category:** B
+    - **Stay in Current City Years:** 1
+    - **Marital Status:** Independent
+    - **Product Category 1:** 1, 5, 8
+    - **Purchase Median:** 8062
+    ''')
+
+# Load Animation
+with col18:
+    def load_lottieurl(url: str):
+        r = requests.get(url)
+        if r.status_code != 200:
+            return none
+        return r.json()
+
+    # JSON url
+    lottie_bye = load_lottieurl("https://lottie.host/cf9a629f-57db-47aa-9201-47965f83396d/j7B4GN2aIO.json")
+
+    st_lottie(lottie_bye, key='bye', speed=1, width=350, height=350)
+
+# Code Download
+with st.container():
+    import base64  # Import the base64 module
+    # Create a Streamlit app
+    st.markdown(' ')
+    st.title('BlackFriday Code Used')
+    st.markdown('---')
+
+    # Read the content of 'myApp.py'
+    with open('myApp.py', 'r', encoding='utf-8') as file:
+        app_code = file.read()
+
+    # Create an HTML template
+    html_template = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    </head>
+    <body>
+        <pre>{app_code}</pre>
+    </body>
+    </html>
+    """
+
+    # Display the HTML content in the Streamlit app
+    st.components.v1.html(html_template, height=300, scrolling=True)
+
+    # Save the HTML content to a file
+    with open("streamlit_generated.html", "w", encoding="utf-8") as file:
+        file.write(html_template)
+
+    # Provide a download link for the saved HTML file
+    st.markdown("### Download HTML File")
+    st.markdown("Click the link below to download the generated HTML file.")
+    st.markdown(
+        f'<a href="data:file/html;base64,{base64.b64encode(html_template.encode()).decode()}" download="streamlit_generated.html">Download HTML</a>',
+        unsafe_allow_html=True,
+    )
