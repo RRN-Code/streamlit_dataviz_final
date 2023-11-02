@@ -7,7 +7,7 @@ Description of the app ...
 
 ## Demo App
 
-[![Streamlit App](https://appdatavizfinal-fgrhwmfbgssafefyxddrk5.streamlit.app/)](https://app-starter-kit.streamlit.app/)
+[![Streamlit App]([https://appdatavizfinal-fgrhwmfbgssafefyxddrk5.streamlit.app/](https://appdatavizfinal-fgrhwmfbgssafefyxddrk5.streamlit.app/)
 
 ## GitHub Codespaces
 
